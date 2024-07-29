@@ -1,0 +1,145 @@
+// Main.java
+import javax.swing.*;
+import java.awt.*;
+import java.util.List;
+
+public class Main {
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(() -> {
+            JFrame frame = new JFrame("Privacy-Preserving Data Mining Tool");
+            frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+            frame.setSize(800, 600);
+
+            DataMiningPanel panel = new DataMiningPanel();
+            frame.add(panel);
+
+            frame.setVisible(true);
+        });
+    }
+}
+
+// DataMiningPanel.java
+import javax.swing.*;
+import java.awt.*;
+import java.io.File;
+import java.io.IOException;
+import java.util.List;
+
+public class DataMiningPanel extends JPanel {
+    private JTextArea resultArea;
+    private DataProcessor dataProcessor;
+
+    public DataMiningPanel() {
+        setLayout(new BorderLayout());
+        dataProcessor = new DataProcessor();
+
+        JButton loadDataButton = new JButton("Load Data");
+        loadDataButton.addActionListener(e -> loadData());
+
+        JButton analyzeDataButton = new JButton("Analyze Data");
+        analyzeDataButton.addActionListener(e -> analyzeData());
+
+        JPanel buttonPanel = new JPanel();
+        buttonPanel.add(loadDataButton);
+        buttonPanel.add(analyzeDataButton);
+
+        resultArea = new JTextArea();
+        resultArea.setEditable(false);
+
+        add(buttonPanel, BorderLayout.NORTH);
+        add(new JScrollPane(resultArea), BorderLayout.CENTER);
+    }
+
+    private void loadData() {
+        JFileChooser fileChooser = new JFileChooser();
+        if (fileChooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
+            File file = fileChooser.getSelectedFile();
+            try {
+                dataProcessor.loadData(file.getAbsolutePath());
+                JOptionPane.showMessageDialog(this, "Data loaded successfully!");
+            } catch (IOException e) {
+                JOptionPane.showMessageDialog(this, "Failed to load data: " + e.getMessage());
+            }
+        }
+    }
+
+    private void analyzeData() {
+        List<String> results = dataProcessor.analyzeData();
+        resultArea.setText(String.join("\n", results));
+    }
+}
+
+// DataProcessor.java
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+
+public class DataProcessor {
+    private List<String> rawData;
+    private List<String> anonymizedData;
+
+    public DataProcessor() {
+        rawData = new ArrayList<>();
+        anonymizedData = new ArrayList<>();
+    }
+
+    public void loadData(String filePath) throws IOException {
+        rawData.clear();
+        try (BufferedReader br = new BufferedReader(new FileReader(filePath))) {
+            String line;
+            while ((line = br.readLine()) != null) {
+                rawData.add(line);
+            }
+        }
+        anonymizeData();
+    }
+
+    private void anonymizeData() {
+        anonymizedData.clear();
+        for (String record : rawData) {
+            anonymizedData.add(anonymize(record));
+        }
+    }
+
+    private String anonymize(String record) {
+        // Simple anonymization by masking some characters
+        return record.replaceAll("\\d", "*");
+    }
+
+    public List<String> analyzeData() {
+        List<String> results = new ArrayList<>();
+        DifferentialPrivacy dp = new DifferentialPrivacy();
+        for (String record : anonymizedData) {
+            results.add(dp.applyNoise(record));
+        }
+        return results;
+    }
+}
+
+// DifferentialPrivacy.java
+import java.util.Random;
+
+public class DifferentialPrivacy {
+    private static final double EPSILON = 0.1;
+    private Random random;
+
+    public DifferentialPrivacy() {
+        random = new Random();
+    }
+
+    public String applyNoise(String data) {
+        StringBuilder noisyData = new StringBuilder();
+        for (char c : data.toCharArray()) {
+            if (Character.isDigit(c)) {
+                double noise = random.nextGaussian() * EPSILON;
+                int noisyValue = (int) (Character.getNumericValue(c) + noise);
+                noisyData.append(Math.max(0, Math.min(9, noisyValue))); // Ensuring the digit stays between 0 and 9
+            } else {
+                noisyData.append(c);
+            }
+        }
+        return noisyData.toString();
+    }
+}
