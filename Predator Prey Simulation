@@ -1,0 +1,220 @@
+// Main.java
+import javax.swing.*;
+import java.awt.*;
+import java.util.Timer;
+import java.util.TimerTask;
+
+public class Main {
+    public static void main(String[] args) {
+        JFrame frame = new JFrame("Predator-Prey Simulation");
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        frame.setSize(800, 600);
+
+        SimulationPanel simulationPanel = new SimulationPanel();
+        frame.add(simulationPanel, BorderLayout.CENTER);
+
+        frame.setVisible(true);
+
+        Timer timer = new Timer();
+        timer.schedule(new TimerTask() {
+            @Override
+            public void run() {
+                simulationPanel.updateSimulation();
+            }
+        }, 0, 1000); // Update every second
+    }
+}
+
+// SimulationPanel.java
+import javax.swing.*;
+import java.awt.*;
+import java.util.ArrayList;
+import java.util.List;
+
+public class SimulationPanel extends JPanel {
+    private Environment environment;
+    private ChartPanel chartPanel;
+
+    public SimulationPanel() {
+        environment = new Environment();
+        chartPanel = new ChartPanel(environment);
+        setLayout(new BorderLayout());
+        add(chartPanel, BorderLayout.EAST);
+    }
+
+    public void updateSimulation() {
+        environment.update();
+        chartPanel.updateChart();
+        repaint();
+    }
+
+    @Override
+    protected void paintComponent(Graphics g) {
+        super.paintComponent(g);
+        environment.draw(g);
+    }
+}
+
+// Environment.java
+import java.awt.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
+
+public class Environment {
+    private List<Animal> animals;
+    private Weather weather;
+    private Disease disease;
+    private int time;
+
+    public Environment() {
+        animals = new ArrayList<>();
+        animals.add(new Predator());
+        animals.add(new Prey());
+        weather = new Weather();
+        disease = new Disease();
+        time = 0;
+    }
+
+    public void update() {
+        weather.update(time);
+        disease.update(time);
+
+        for (Animal animal : animals) {
+            animal.update(weather, disease);
+        }
+
+        time++;
+    }
+
+    public void draw(Graphics g) {
+        for (Animal animal : animals) {
+            animal.draw(g);
+        }
+    }
+
+    public List<Animal> getAnimals() {
+        return animals;
+    }
+
+    public int getTime() {
+        return time;
+    }
+}
+
+// Animal.java
+import java.awt.*;
+
+abstract class Animal {
+    protected int population;
+    protected int x, y;
+
+    public Animal() {
+        population = 100;
+        x = new Random().nextInt(800);
+        y = new Random().nextInt(600);
+    }
+
+    public abstract void update(Weather weather, Disease disease);
+
+    public void draw(Graphics g) {
+        g.fillOval(x, y, 10, 10);
+    }
+
+    public int getPopulation() {
+        return population;
+    }
+}
+
+// Predator.java
+public class Predator extends Animal {
+    @Override
+    public void update(Weather weather, Disease disease) {
+        // Update logic for predator
+        population += new Random().nextInt(10) - 5;
+        if (weather.isHarsh()) {
+            population -= 10;
+        }
+        if (disease.isOutbreak()) {
+            population -= 20;
+        }
+    }
+}
+
+// Prey.java
+public class Prey extends Animal {
+    @Override
+    public void update(Weather weather, Disease disease) {
+        // Update logic for prey
+        population += new Random().nextInt(15) - 5;
+        if (weather.isHarsh()) {
+            population -= 5;
+        }
+        if (disease.isOutbreak()) {
+            population -= 10;
+        }
+    }
+}
+
+// Weather.java
+public class Weather {
+    private boolean isHarsh;
+
+    public void update(int time) {
+        isHarsh = time % 20 < 5;
+    }
+
+    public boolean isHarsh() {
+        return isHarsh;
+    }
+}
+
+// Disease.java
+public class Disease {
+    private boolean outbreak;
+
+    public void update(int time) {
+        outbreak = time % 30 < 10;
+    }
+
+    public boolean isOutbreak() {
+        return outbreak;
+    }
+}
+
+// ChartPanel.java
+import org.jfree.chart.ChartFactory;
+import org.jfree.chart.ChartPanel;
+import org.jfree.chart.JFreeChart;
+import org.jfree.chart.plot.PlotOrientation;
+import org.jfree.data.category.DefaultCategoryDataset;
+
+import javax.swing.*;
+import java.awt.*;
+
+public class ChartPanel extends JPanel {
+    private DefaultCategoryDataset dataset;
+    private JFreeChart lineChart;
+    private Environment environment;
+
+    public ChartPanel(Environment environment) {
+        this.environment = environment;
+        dataset = new DefaultCategoryDataset();
+        lineChart = ChartFactory.createLineChart(
+                "Animal Population Over Time",
+                "Time",
+                "Population",
+                dataset,
+                PlotOrientation.VERTICAL,
+                true, true, false);
+
+        ChartPanel chartPanel = new ChartPanel(lineChart);
+        chartPanel.setPreferredSize(new Dimension(400, 600));
+        add(chartPanel, BorderLayout.CENTER);
+    }
+
+    public void updateChart() {
+        dataset.addValue(environment.getAnimals().get(0).getPopulation(), "Predator", String.valueOf(environment.getTime()));
+        dataset.addValue(environment.getAnimals().get(1).getPopulation(), "Prey", String.valueOf(environment.getTime()));
+    }
+}
