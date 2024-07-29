@@ -1,0 +1,93 @@
+// Main.java
+import java.math.BigInteger;
+import java.security.SecureRandom;
+
+public class Main {
+    public static void main(String[] args) {
+        SecureRandom random = new SecureRandom();
+
+        // Parameters for Schnorr protocol
+        BigInteger p = new BigInteger("23"); // A large prime number
+        BigInteger q = new BigInteger("11"); // A prime factor of p-1
+        BigInteger g = new BigInteger("2");  // A generator of the subgroup of order q
+
+        // Prover's secret
+        BigInteger x = new BigInteger("5");
+
+        // Prover's public key
+        BigInteger h = g.modPow(x, p);
+
+        Prover prover = new Prover(p, q, g, x);
+        Verifier verifier = new Verifier(p, q, g, h);
+
+        BigInteger commitment = prover.commit();
+        BigInteger challenge = verifier.challenge(commitment);
+        BigInteger response = prover.response(challenge);
+
+        boolean result = verifier.verify(commitment, response);
+
+        System.out.println("Verification result: " + result);
+    }
+}
+
+// Prover.java
+import java.math.BigInteger;
+import java.security.SecureRandom;
+
+public class Prover {
+    private final BigInteger p;
+    private final BigInteger q;
+    private final BigInteger g;
+    private final BigInteger x;
+    private BigInteger r;
+    private BigInteger commitment;
+
+    public Prover(BigInteger p, BigInteger q, BigInteger g, BigInteger x) {
+        this.p = p;
+        this.q = q;
+        this.g = g;
+        this.x = x;
+    }
+
+    public BigInteger commit() {
+        SecureRandom random = new SecureRandom();
+        r = new BigInteger(q.bitLength(), random).mod(q);
+        commitment = g.modPow(r, p);
+        return commitment;
+    }
+
+    public BigInteger response(BigInteger challenge) {
+        return r.add(challenge.multiply(x)).mod(q);
+    }
+}
+
+// Verifier.java
+import java.math.BigInteger;
+import java.security.SecureRandom;
+
+public class Verifier {
+    private final BigInteger p;
+    private final BigInteger q;
+    private final BigInteger g;
+    private final BigInteger h;
+    private BigInteger challenge;
+
+    public Verifier(BigInteger p, BigInteger q, BigInteger g, BigInteger h) {
+        this.p = p;
+        this.q = q;
+        this.g = g;
+        this.h = h;
+    }
+
+    public BigInteger challenge(BigInteger commitment) {
+        SecureRandom random = new SecureRandom();
+        challenge = new BigInteger(q.bitLength(), random).mod(q);
+        return challenge;
+    }
+
+    public boolean verify(BigInteger commitment, BigInteger response) {
+        BigInteger left = g.modPow(response, p);
+        BigInteger right = commitment.multiply(h.modPow(challenge, p)).mod(p);
+        return left.equals(right);
+    }
+}
